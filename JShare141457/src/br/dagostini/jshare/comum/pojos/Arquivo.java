@@ -25,4 +25,7 @@ public class Arquivo implements Serializable {
 		this.tamanho = tamanho;
 	}
 
+	public String toString() {
+		return nome + " - " + tamanho;
+	}
 }
