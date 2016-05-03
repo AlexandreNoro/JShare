@@ -1,6 +1,5 @@
 package br.univel.jshare.Tela;
 
-import java.awt.BorderLayout;
 import java.awt.EventQueue;
 
 import javax.swing.JFrame;
@@ -19,18 +18,24 @@ import javax.swing.JLabel;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
 import javax.swing.JTextField;
+import javax.swing.ListModel;
+import javax.swing.AbstractListModel;
 import javax.swing.JButton;
 import javax.swing.JScrollPane;
 import javax.swing.JComboBox;
 import javax.swing.JList;
+import javax.swing.JOptionPane;
+
 import java.awt.Font;
 import java.awt.SystemColor;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.rmi.RemoteException;
+import java.rmi.registry.Registry;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -360,61 +365,146 @@ public class Tela extends JFrame {
 				finalizar();
 			}
 		});
-		
+
 		btnFechar.addActionListener(new ActionListener() {
-			
+
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				dispose();
 				finalizar();
-				
+
 			}
 		});
 
 	}
 
-	protected void finalizar() {
-		// TODO Auto-generated method stub
-
-	}
-
 	protected void conectar(String hostServer, String portaServer) {
-		
+
 		Auxiliar aux = new Auxiliar();
 
 		try {
 			hostServer = aux.verificaIP(hostServer);
 			int porta = aux.verificaPorta(portaServer);
-			
+
 			instanciarCliente();
-			
+
 			servico.registrarCliente(cliente);
 			servico.publicarListaArquivos(cliente, new ListarDiretoriosArquivos().listarArquivos());
-			
+
 			btnBuscarArq.setEnabled(true);
-			
+
 		} catch (Exception e) {
 
+			JOptionPane.showMessageDialog(null,
+					e.getMessage() + "\n\n ERRO AO CONECTAR. VERIFIQUE SE O SERVIDOR ESTÁ ATIVO \n\n");
+
+			e.printStackTrace();
+			conectar(IpServer, PortaServer);
+			JOptionPane.showMessageDialog(this, "Reconectando ao servidor!!");
 		}
 	}
 
-	private void instanciarCliente() {
-		// TODO Auto-generated method stub
-		
-	}
+	protected void finalizar() {
 
-	protected void PararServer() {
-		// TODO Auto-generated method stub
+		try {
+			for (int i = 0; i < MapClientes.size(); i++) {
+				desconectar(MapClientes.get(i));
+			}
+			if (servico != null)
+				servico.desconectar(cliente);
+			if (iServer != null)
+				encerrarServer();
+		} catch (Exception e1) {
+
+			e1.printStackTrace();
+
+		}
 
 	}
 
 	protected void IniciarServer() {
-		// TODO Auto-generated method stub
+
+	}
+
+	protected void PararServer() {
 
 	}
 
 	protected void Buscar() {
-		// TODO Auto-generated method stub
+		list.removeAll();
+		ListMapArquivos.clear();
+		try {
+			ListMapArquivos = servico.procurarArquivo(txt_NomeArq.getText().trim());
+			for (Map.Entry<Cliente, List<Arquivo>> entry : ListMapArquivos.entrySet()) {
+				addListaPesquisa(entry.getValue());
+			}
+		} catch (RemoteException e) {
+			JOptionPane.showMessageDialog(this, "Erro ao pesquisar");
+			e.printStackTrace();
+			conectar(IpServer, PortaServer);
+			JOptionPane.showMessageDialog(this, "Reconectando ao servidor");
+		}
+	}
+
+	private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy H:mm:ss:SSS");
+
+	private Map<String, Cliente> mapClienteServer = new HashMap<>();
+
+	private Map<Cliente, List<Arquivo>> ListArqServer = new HashMap<>();
+
+	private IServer iServer;
+
+	private Registry registryClienteServer;
+
+	private void instanciarCliente() {
+		Auxiliar aux = new Auxiliar();
+		if (cliente == null) {
+			if (IpServer == null || PortaServer == null) {
+				IpServer = txt_IpServer.getText();
+				PortaServer = txt_PortaServer.getText();
+			}
+
+			cliente = new Cliente();
+			cliente.setNome(aux.verificaNome(txt_Nome.getText()));
+			cliente.setIp(aux.verificaIP(cbx_IpLocal.getSelectedItem().toString()));
+			cliente.setPorta(aux.verificaPorta(txt_PortaLocal.getText()));
+		} else {
+			cliente.setNome(aux.verificaNome(txt_Nome.getText()));
+			cliente.setIp(aux.verificaIP(cbx_IpLocal.getSelectedItem().toString()));
+			cliente.setPorta(aux.verificaPorta(txt_PortaLocal.getText()));
+		}
+	}
+
+	private void addListaPesquisa(List<Arquivo> value) throws RemoteException {
+		list.removeAll();
+
+		ListModel<String> model = new AbstractListModel<String>() {
+			@Override
+			public int getSize() {
+				return value.size();
+			}
+
+			@Override
+			public String getElementAt(int index) {
+				return value.get(index).getNome();
+			}
+		};
+		list.setModel(model);
+
+	}
+
+	private void desconectar(Cliente cliente2) throws RemoteException {
+		mapClienteServer.remove(cliente2);
+		ListArqServer.remove(cliente2);
+		mostrarNaTela("Cliente: " + cliente2.getNome().toUpperCase() + " desconectado!");
+	}
+
+	private void encerrarServer() {
+
+	}
+
+	private void mostrarNaTela(String string) {
+		
 
 	}
 
