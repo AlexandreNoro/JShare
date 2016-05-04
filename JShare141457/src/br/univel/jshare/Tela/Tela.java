@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.awt.event.ActionEvent;
 import javax.swing.JTextArea;
+import java.awt.Color;
 
 public class Tela extends JFrame implements IServer {
 
@@ -95,7 +96,7 @@ public class Tela extends JFrame implements IServer {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 752, 460);
 		contentPane = new JPanel();
-		contentPane.setBackground(SystemColor.textHighlight);
+		contentPane.setBackground(Color.LIGHT_GRAY);
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
 		GridBagLayout gbl_contentPane = new GridBagLayout();
@@ -307,10 +308,9 @@ public class Tela extends JFrame implements IServer {
 
 		textArea = new JTextArea();
 		scrollPane_1.setViewportView(textArea);
-		
-		
+
 		configurar();
-		
+
 	}
 
 	private static String IpServer = null;
@@ -367,7 +367,7 @@ public class Tela extends JFrame implements IServer {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				conectar(txt_IpServer.getText(), txt_PortaServer.getText());
+				conectar(txt_IpServer.getText(), txt_PortaServer.getText(), 0);
 
 			}
 		});
@@ -412,7 +412,7 @@ public class Tela extends JFrame implements IServer {
 
 	}
 
-	protected void conectar(String hostServer, String portaServer) {
+	protected void conectar(String hostServer, String portaServer, int erro) {
 
 		Auxiliar aux = new Auxiliar();
 
@@ -434,8 +434,13 @@ public class Tela extends JFrame implements IServer {
 					e.getMessage() + "\n\n ERRO AO CONECTAR. VERIFIQUE SE O SERVIDOR ESTÁ ATIVO \n\n");
 
 			e.printStackTrace();
-			conectar(IpServer, PortaServer);
-			JOptionPane.showMessageDialog(this, "Reconectando ao servidor!!");
+			if (erro < 2) {
+				conectar(IpServer, PortaServer, erro + 1);
+				JOptionPane.showMessageDialog(this, "Reconectando ao servidor!!");
+
+			} else {
+				JOptionPane.showMessageDialog(this, "Não foi possível conectar ao servidor");
+			}
 		}
 	}
 
@@ -451,11 +456,95 @@ public class Tela extends JFrame implements IServer {
 				PararServer();
 		} catch (Exception e1) {
 
-			e1.printStackTrace();
+			return;
 
 		}
 
 	}
+
+	protected void Buscar() {
+		list.removeAll();
+		ListMapArquivos.clear();
+		try {
+			ListMapArquivos = servico.procurarArquivo(txt_NomeArq.getText().trim());
+			for (Map.Entry<Cliente, List<Arquivo>> entry : ListMapArquivos.entrySet()) {
+				addListaPesquisa(entry.getValue());
+				System.out.println(entry.getValue());
+			}
+		} catch (RemoteException e) {
+			JOptionPane.showMessageDialog(this, "Erro ao pesquisar");
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(this, "Reconectando ao servidor");
+			conectar(IpServer, PortaServer, 0);
+		}
+	}
+
+	private void Download() {
+		try {
+			int vlr = list.getSelectedIndex();
+
+			if (vlr > -1) {
+				String nomeArq = (String) list.getModel().getElementAt(vlr);
+				for (Map.Entry<Cliente, List<Arquivo>> entry : ListMapArquivos.entrySet()) {
+					for (Arquivo arq : entry.getValue()) {
+						if (nomeArq.equals(arq.getNome())) {
+
+							servico = null;
+							txt_IpServer.setText(entry.getKey().getIp());
+							txt_PortaServer.setText(String.valueOf(entry.getKey().getPorta()));
+
+							conectar(txt_IpServer.getText(), txt_PortaServer.getText(), 0);
+
+							escreverDowload(servico.baixarArquivo(arq), arq.getFile());
+
+							return;
+						}
+					}
+				}
+			} else {
+				JOptionPane.showMessageDialog(this, "Selecione o item que deseja baixar");
+			}
+		} catch (RemoteException e) {
+			JOptionPane.showMessageDialog(this, "Erro ao realizar Download");
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(this, "Reconectando ao servidor");
+			conectar(IpServer, PortaServer, 0);
+
+		}
+	}
+
+	private void escreverDowload(byte[] dados, File nome) {
+		new LeituraEscritadeArquivos().escreva(new File(".\\Share\\Upload\\" + "Cópia de " + nome.getName()), dados);
+	}
+
+	private void instanciarCliente() {
+		Auxiliar aux = new Auxiliar();
+		if (cliente == null) {
+			if (IpServer == null || PortaServer == null) {
+				IpServer = txt_IpServer.getText();
+				PortaServer = txt_PortaServer.getText();
+			}
+
+			cliente = new Cliente();
+			cliente.setNome(aux.verificaNome(txt_Nome.getText()));
+			cliente.setIp(aux.verificaIP(cbx_IpLocal.getSelectedItem().toString()));
+			cliente.setPorta(aux.verificaPorta(txt_PortaLocal.getText()));
+		} else {
+			cliente.setNome(aux.verificaNome(txt_Nome.getText()));
+			cliente.setIp(aux.verificaIP(cbx_IpLocal.getSelectedItem().toString()));
+			cliente.setPorta(aux.verificaPorta(txt_PortaLocal.getText()));
+		}
+	}
+
+	private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy H:mm:ss:SSS");
+
+	private Map<String, Cliente> mapClienteServer = new HashMap<>();
+
+	private Map<Cliente, List<Arquivo>> ListArqServer = new HashMap<>();
+
+	private IServer iServer;
+
+	private Registry registryClienteServer;
 
 	protected void IniciarServer() {
 
@@ -497,53 +586,7 @@ public class Tela extends JFrame implements IServer {
 			mostrarNaTela("Servidor Parado!!");
 
 		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	protected void Buscar() {
-		list.removeAll();
-		ListMapArquivos.clear();
-		try {
-			ListMapArquivos = servico.procurarArquivo(txt_NomeArq.getText().trim());
-			for (Map.Entry<Cliente, List<Arquivo>> entry : ListMapArquivos.entrySet()) {
-				addListaPesquisa(entry.getValue());
-			}
-		} catch (RemoteException e) {
-			JOptionPane.showMessageDialog(this, "Erro ao pesquisar");
-			e.printStackTrace();
-			conectar(IpServer, PortaServer);
-			JOptionPane.showMessageDialog(this, "Reconectando ao servidor");
-		}
-	}
-
-	private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy H:mm:ss:SSS");
-
-	private Map<String, Cliente> mapClienteServer = new HashMap<>();
-
-	private Map<Cliente, List<Arquivo>> ListArqServer = new HashMap<>();
-
-	private IServer iServer;
-
-	private Registry registryClienteServer;
-	
-
-	private void instanciarCliente() {
-		Auxiliar aux = new Auxiliar();
-		if (cliente == null) {
-			if (IpServer == null || PortaServer == null) {
-				IpServer = txt_IpServer.getText();
-				PortaServer = txt_PortaServer.getText();
-			}
-
-			cliente = new Cliente();
-			cliente.setNome(aux.verificaNome(txt_Nome.getText()));
-			cliente.setIp(aux.verificaIP(cbx_IpLocal.getSelectedItem().toString()));
-			cliente.setPorta(aux.verificaPorta(txt_PortaLocal.getText()));
-		} else {
-			cliente.setNome(aux.verificaNome(txt_Nome.getText()));
-			cliente.setIp(aux.verificaIP(cbx_IpLocal.getSelectedItem().toString()));
-			cliente.setPorta(aux.verificaPorta(txt_PortaLocal.getText()));
+			return;
 		}
 	}
 
@@ -562,11 +605,6 @@ public class Tela extends JFrame implements IServer {
 			}
 		};
 		list.setModel(model);
-
-	}
-
-	protected void DesconectarTodosClientes() {
-		mostrarNaTela("Desconectando todos os clientes do Servidor");
 
 	}
 
@@ -591,7 +629,7 @@ public class Tela extends JFrame implements IServer {
 			mostrarNaTela("Cliente:" + c.getNome() + "/ Publico arquivo: " + arquivo.getNome() + " : "
 					+ arquivo.getTamanho());
 		}
-		ListMapArquivos.put(c, lista);
+		ListArqServer.put(c, lista);
 	}
 
 	@Override
@@ -605,6 +643,7 @@ public class Tela extends JFrame implements IServer {
 				if (arq.getNome().equals(nome)) {
 					listArquivo.add(arq);
 				}
+				System.out.println(arq.getNome());
 			}
 			if (listArquivo.size() > 0) {
 				resultMapArq.put(entry.getKey(), listArquivo);
@@ -615,7 +654,7 @@ public class Tela extends JFrame implements IServer {
 
 	@Override
 	public byte[] baixarArquivo(Arquivo arq) throws RemoteException {
-		File file = new File(".\\Share\\Dowload\\" + arq.getNome());
+		File file = new File(".\\Share\\Download\\" + arq.getNome());
 		byte[] dados = new LeituraEscritadeArquivos().leia(file);
 		mostrarNaTela("Feito dowload do -> " + arq.getNome());
 		return dados;
@@ -629,40 +668,9 @@ public class Tela extends JFrame implements IServer {
 
 	}
 
-	private void Download() {
-		try {
-			int vlr = list.getSelectedIndex();
+	protected void DesconectarTodosClientes() {
+		mostrarNaTela("Desconectando todos os clientes do Servidor");
 
-			if (vlr > -1) {
-				String nomeArq = (String) list.getModel().getElementAt(vlr);
-				for (Map.Entry<Cliente, List<Arquivo>> entry : ListMapArquivos.entrySet()) {
-					for (Arquivo arq : entry.getValue()) {
-						if (nomeArq.equals(arq.getNome())) {
-
-							servico = null;
-							txt_IpServer.setText(entry.getKey().getIp());
-							txt_PortaServer.setText(String.valueOf(entry.getKey().getPorta()));
-
-							conectar(txt_IpServer.getText(), txt_PortaServer.getText());
-
-							escreverDowload(servico.baixarArquivo(arq), arq.getFile());
-
-							return;
-						}
-					}
-				}
-			} else {
-				JOptionPane.showMessageDialog(this, "Selecione o item que deseja baixar");
-			}
-		} catch (RemoteException e) {
-			JOptionPane.showMessageDialog(this, "Erro ao realizar Download");
-			e.printStackTrace();
-			conectar(IpServer, PortaServer);
-			JOptionPane.showMessageDialog(this, "Reconectando ao servidor");
-		}
 	}
 
-	private void escreverDowload(byte[] dados, File nome) {
-		new LeituraEscritadeArquivos().escreva(new File(".\\Share\\Upload\\" + "Cópia de " + nome.getName()), dados);
-	}
 }
