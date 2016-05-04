@@ -31,7 +31,7 @@ public class LeituraEscritadeArquivos {
 
 	}
 
-	private void escreva(File arq, byte[] dados) {
+	public void escreva(File arq, byte[] dados) {
 
 		try {
 			Files.write(Paths.get(arq.getPath()), dados, StandardOpenOption.CREATE);
@@ -41,7 +41,7 @@ public class LeituraEscritadeArquivos {
 
 	}
 
-	private byte[] leia(File arq) {
+	public byte[] leia(File arq) {
 
 		Path path = Paths.get(arq.getPath());
 
