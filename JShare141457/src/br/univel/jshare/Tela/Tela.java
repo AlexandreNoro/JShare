@@ -10,6 +10,7 @@ import br.dagostini.jshare.comum.pojos.Arquivo;
 import br.univel.jshare.auxiliar.Auxiliar;
 import br.univel.jshare.comun.Cliente;
 import br.univel.jshare.comun.IServer;
+import br.univel.jshare.ler.LeituraEscritadeArquivos;
 import br.univel.jshare.ler.LerIp;
 import br.univel.jshare.ler.ListarDiretoriosArquivos;
 
@@ -33,16 +34,22 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
+import java.rmi.Naming;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.awt.event.ActionEvent;
 import javax.swing.JTextArea;
 
-public class Tela extends JFrame {
+public class Tela extends JFrame implements IServer {
 
 	private JPanel contentPane;
 	private JTextField txt_Nome;
@@ -62,6 +69,7 @@ public class Tela extends JFrame {
 	private JScrollPane scrollPane_1;
 	private JButton btnFechar;
 	private JTextArea textArea;
+	private JButton btnDownload;
 
 	/**
 	 * Launch the application.
@@ -108,6 +116,7 @@ public class Tela extends JFrame {
 		contentPane.add(lblNome, gbc_lblNome);
 
 		txt_Nome = new JTextField();
+		txt_Nome.setText("Alexandre Henrique Noro");
 		GridBagConstraints gbc_txt_Nome = new GridBagConstraints();
 		gbc_txt_Nome.gridwidth = 3;
 		gbc_txt_Nome.insets = new Insets(0, 0, 5, 5);
@@ -120,6 +129,7 @@ public class Tela extends JFrame {
 		btnFechar = new JButton("Fechar");
 		btnFechar.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
+				finalizar();
 			}
 		});
 		btnFechar.setFont(new Font("Consolas", Font.BOLD, 11));
@@ -141,6 +151,7 @@ public class Tela extends JFrame {
 		contentPane.add(lblServer_IP, gbc_lblServer_IP);
 
 		txt_IpServer = new JTextField();
+		txt_IpServer.setText("127.0.0.1");
 		GridBagConstraints gbc_txt_IpServer = new GridBagConstraints();
 		gbc_txt_IpServer.gridwidth = 2;
 		gbc_txt_IpServer.fill = GridBagConstraints.BOTH;
@@ -191,6 +202,7 @@ public class Tela extends JFrame {
 		contentPane.add(lblNome_Arq, gbc_lblNome_Arq);
 
 		txt_NomeArq = new JTextField();
+		txt_NomeArq.setText("DadosAluno.txt");
 		GridBagConstraints gbc_txt_NomeArq = new GridBagConstraints();
 		gbc_txt_NomeArq.gridwidth = 2;
 		gbc_txt_NomeArq.fill = GridBagConstraints.BOTH;
@@ -208,6 +220,15 @@ public class Tela extends JFrame {
 		gbc_btnBuscarArq.gridx = 3;
 		gbc_btnBuscarArq.gridy = 3;
 		contentPane.add(btnBuscarArq, gbc_btnBuscarArq);
+
+		btnDownload = new JButton("Download ");
+		btnDownload.setFont(new Font("Consolas", Font.BOLD, 11));
+		GridBagConstraints gbc_btnDownload = new GridBagConstraints();
+		gbc_btnDownload.fill = GridBagConstraints.HORIZONTAL;
+		gbc_btnDownload.insets = new Insets(0, 0, 5, 0);
+		gbc_btnDownload.gridx = 6;
+		gbc_btnDownload.gridy = 3;
+		contentPane.add(btnDownload, gbc_btnDownload);
 
 		scrollPane = new JScrollPane();
 		GridBagConstraints gbc_scrollPane = new GridBagConstraints();
@@ -286,6 +307,10 @@ public class Tela extends JFrame {
 
 		textArea = new JTextArea();
 		scrollPane_1.setViewportView(textArea);
+		
+		
+		configurar();
+		
 	}
 
 	private static String IpServer = null;
@@ -347,6 +372,15 @@ public class Tela extends JFrame {
 			}
 		});
 
+		btnDownload.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				Download();
+
+			}
+		});
+
 		list.addMouseListener(new MouseAdapter() {
 
 			public void mouseClicked(MouseEvent e) {
@@ -387,6 +421,7 @@ public class Tela extends JFrame {
 			int porta = aux.verificaPorta(portaServer);
 
 			instanciarCliente();
+			servico = (IServer) Naming.lookup("rmi://" + hostServer + ":" + porta + "/" + IServer.NOME_SERVICO);
 
 			servico.registrarCliente(cliente);
 			servico.publicarListaArquivos(cliente, new ListarDiretoriosArquivos().listarArquivos());
@@ -413,7 +448,7 @@ public class Tela extends JFrame {
 			if (servico != null)
 				servico.desconectar(cliente);
 			if (iServer != null)
-				encerrarServer();
+				PararServer();
 		} catch (Exception e1) {
 
 			e1.printStackTrace();
@@ -424,10 +459,46 @@ public class Tela extends JFrame {
 
 	protected void IniciarServer() {
 
+		try {
+			iServer = (IServer) UnicastRemoteObject.exportObject(this, 0);
+			registryClienteServer = LocateRegistry
+					.createRegistry(new Auxiliar().verificaPorta(txt_PortaLocal.getText()));
+			registryClienteServer.rebind(IServer.NOME_SERVICO, iServer);
+
+			mostrarNaTela("Serviço iniciado");
+
+			cbx_IpLocal.setEnabled(false);
+			txt_PortaLocal.setEnabled(false);
+			btnIniciarServer.setEnabled(false);
+
+			btnParar_Server.setEnabled(true);
+		} catch (RemoteException e) {
+			JOptionPane.showMessageDialog(this, e.getMessage() + "\n\n Erro ao iniciar Serviço");
+			e.printStackTrace();
+		}
+
 	}
 
 	protected void PararServer() {
 
+		mostrarNaTela("Servidor esta parando o serviço");
+
+		DesconectarTodosClientes();
+
+		try {
+			UnicastRemoteObject.unexportObject(this, true);
+			UnicastRemoteObject.unexportObject(registryClienteServer, true);
+
+			txt_PortaLocal.setEnabled(true);
+			btnIniciarServer.setEnabled(true);
+
+			btnParar_Server.setEnabled(false);
+
+			mostrarNaTela("Servidor Parado!!");
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	protected void Buscar() {
@@ -455,6 +526,7 @@ public class Tela extends JFrame {
 	private IServer iServer;
 
 	private Registry registryClienteServer;
+	
 
 	private void instanciarCliente() {
 		Auxiliar aux = new Auxiliar();
@@ -493,19 +565,104 @@ public class Tela extends JFrame {
 
 	}
 
-	private void desconectar(Cliente cliente2) throws RemoteException {
-		mapClienteServer.remove(cliente2);
-		ListArqServer.remove(cliente2);
-		mostrarNaTela("Cliente: " + cliente2.getNome().toUpperCase() + " desconectado!");
-	}
-
-	private void encerrarServer() {
+	protected void DesconectarTodosClientes() {
+		mostrarNaTela("Desconectando todos os clientes do Servidor");
 
 	}
 
 	private void mostrarNaTela(String string) {
-		
+		textArea.append(sdf.format(new Date()));
+		textArea.append(" -> ");
+		textArea.append(string);
+		textArea.append("\n");
 
 	}
 
+	@Override
+	public void registrarCliente(Cliente c) throws RemoteException {
+		mostrarNaTela(c.getNome() + ", com ip:" + c.getIp() + " se conectou.");
+		mapClienteServer.put(c.getIp(), c);
+
+	}
+
+	@Override
+	public void publicarListaArquivos(Cliente c, List<Arquivo> lista) throws RemoteException {
+		for (Arquivo arquivo : lista) {
+			mostrarNaTela("Cliente:" + c.getNome() + "/ Publico arquivo: " + arquivo.getNome() + " : "
+					+ arquivo.getTamanho());
+		}
+		ListMapArquivos.put(c, lista);
+	}
+
+	@Override
+	public Map<Cliente, List<Arquivo>> procurarArquivo(String nome) throws RemoteException {
+		mostrarNaTela("Foi pesquisado o \"Arquivo\" ->" + nome);
+
+		Map<Cliente, List<Arquivo>> resultMapArq = new HashMap<>();
+		for (Map.Entry<Cliente, List<Arquivo>> entry : ListArqServer.entrySet()) {
+			List<Arquivo> listArquivo = new ArrayList<>();
+			for (Arquivo arq : entry.getValue()) {
+				if (arq.getNome().equals(nome)) {
+					listArquivo.add(arq);
+				}
+			}
+			if (listArquivo.size() > 0) {
+				resultMapArq.put(entry.getKey(), listArquivo);
+			}
+		}
+		return resultMapArq;
+	}
+
+	@Override
+	public byte[] baixarArquivo(Arquivo arq) throws RemoteException {
+		File file = new File(".\\Share\\Dowload\\" + arq.getNome());
+		byte[] dados = new LeituraEscritadeArquivos().leia(file);
+		mostrarNaTela("Feito dowload do -> " + arq.getNome());
+		return dados;
+	}
+
+	@Override
+	public void desconectar(Cliente c) throws RemoteException {
+		mapClienteServer.remove(c);
+		ListArqServer.remove(c);
+		mostrarNaTela("Cliente: " + c.getNome().toUpperCase() + " desconectado!");
+
+	}
+
+	private void Download() {
+		try {
+			int vlr = list.getSelectedIndex();
+
+			if (vlr > -1) {
+				String nomeArq = (String) list.getModel().getElementAt(vlr);
+				for (Map.Entry<Cliente, List<Arquivo>> entry : ListMapArquivos.entrySet()) {
+					for (Arquivo arq : entry.getValue()) {
+						if (nomeArq.equals(arq.getNome())) {
+
+							servico = null;
+							txt_IpServer.setText(entry.getKey().getIp());
+							txt_PortaServer.setText(String.valueOf(entry.getKey().getPorta()));
+
+							conectar(txt_IpServer.getText(), txt_PortaServer.getText());
+
+							escreverDowload(servico.baixarArquivo(arq), arq.getFile());
+
+							return;
+						}
+					}
+				}
+			} else {
+				JOptionPane.showMessageDialog(this, "Selecione o item que deseja baixar");
+			}
+		} catch (RemoteException e) {
+			JOptionPane.showMessageDialog(this, "Erro ao realizar Download");
+			e.printStackTrace();
+			conectar(IpServer, PortaServer);
+			JOptionPane.showMessageDialog(this, "Reconectando ao servidor");
+		}
+	}
+
+	private void escreverDowload(byte[] dados, File nome) {
+		new LeituraEscritadeArquivos().escreva(new File(".\\Share\\Upload\\" + "Cópia de " + nome.getName()), dados);
+	}
 }
