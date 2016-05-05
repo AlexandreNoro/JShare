@@ -1,11 +1,17 @@
-package br.univel.jshare.comun;
+package br.dagostini.jshare.comun;
 
 import java.io.Serializable;
 
+/**
+ * Identificação do cliente.
+ * 
+ * @author fernandod
+ *
+ */
 public class Cliente implements Serializable {
 
 	private static final long serialVersionUID = 8998030883019232904L;
-
+	
 	private String nome;
 	private String ip;
 	private int porta;

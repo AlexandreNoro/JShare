@@ -7,9 +7,9 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 
 import br.dagostini.jshare.comum.pojos.Arquivo;
+import br.dagostini.jshare.comun.Cliente;
+import br.dagostini.jshare.comun.IServer;
 import br.univel.jshare.auxiliar.Auxiliar;
-import br.univel.jshare.comun.Cliente;
-import br.univel.jshare.comun.IServer;
 import br.univel.jshare.ler.LeituraEscritadeArquivos;
 import br.univel.jshare.ler.LerIp;
 import br.univel.jshare.ler.ListarDiretoriosArquivos;
@@ -28,7 +28,6 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 
 import java.awt.Font;
-import java.awt.SystemColor;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -173,7 +172,7 @@ public class Tela extends JFrame implements IServer {
 		contentPane.add(lblPorta_Server, gbc_lblPorta_Server);
 
 		txt_PortaServer = new JTextField();
-		txt_PortaServer.setText("2233");
+		txt_PortaServer.setText("2234");
 		GridBagConstraints gbc_txt_PortaServer = new GridBagConstraints();
 		gbc_txt_PortaServer.gridwidth = 2;
 		gbc_txt_PortaServer.insets = new Insets(0, 0, 5, 5);
@@ -271,7 +270,7 @@ public class Tela extends JFrame implements IServer {
 		contentPane.add(lblPortaLocal, gbc_lblPortaLocal);
 
 		txt_PortaLocal = new JTextField();
-		txt_PortaLocal.setText("2234");
+		txt_PortaLocal.setText("2233");
 		GridBagConstraints gbc_txt_PortaLocal = new GridBagConstraints();
 		gbc_txt_PortaLocal.insets = new Insets(0, 0, 5, 5);
 		gbc_txt_PortaLocal.fill = GridBagConstraints.BOTH;
@@ -469,7 +468,6 @@ public class Tela extends JFrame implements IServer {
 			ListMapArquivos = servico.procurarArquivo(txt_NomeArq.getText().trim());
 			for (Map.Entry<Cliente, List<Arquivo>> entry : ListMapArquivos.entrySet()) {
 				addListaPesquisa(entry.getValue());
-				System.out.println(entry.getValue());
 			}
 		} catch (RemoteException e) {
 			JOptionPane.showMessageDialog(this, "Erro ao pesquisar");
@@ -617,25 +615,13 @@ public class Tela extends JFrame implements IServer {
 	}
 
 	@Override
-	public void registrarCliente(Cliente c) throws RemoteException {
-		mostrarNaTela(c.getNome() + ", com ip:" + c.getIp() + " se conectou.");
-		mapClienteServer.put(c.getIp(), c);
-
-	}
-
-	@Override
-	public void publicarListaArquivos(Cliente c, List<Arquivo> lista) throws RemoteException {
-		for (Arquivo arquivo : lista) {
-			mostrarNaTela("Cliente:" + c.getNome() + "/ Publico arquivo: " + arquivo.getNome() + " : "
-					+ arquivo.getTamanho());
-		}
-		ListArqServer.put(c, lista);
-	}
-
-	@Override
 	public Map<Cliente, List<Arquivo>> procurarArquivo(String nome) throws RemoteException {
+		
 		mostrarNaTela("Foi pesquisado o \"Arquivo\" ->" + nome);
 
+		if (nome.length() == 0) {
+			return ListArqServer;
+		}
 		Map<Cliente, List<Arquivo>> resultMapArq = new HashMap<>();
 		for (Map.Entry<Cliente, List<Arquivo>> entry : ListArqServer.entrySet()) {
 			List<Arquivo> listArquivo = new ArrayList<>();
@@ -643,7 +629,7 @@ public class Tela extends JFrame implements IServer {
 				if (arq.getNome().equals(nome)) {
 					listArquivo.add(arq);
 				}
-				System.out.println(arq.getNome());
+
 			}
 			if (listArquivo.size() > 0) {
 				resultMapArq.put(entry.getKey(), listArquivo);
@@ -660,16 +646,33 @@ public class Tela extends JFrame implements IServer {
 		return dados;
 	}
 
+	protected void DesconectarTodosClientes() {
+		mostrarNaTela("Desconectando todos os clientes do Servidor");
+
+	}
+
+	@Override
+	public void registrarCliente(Cliente c) throws RemoteException {
+		mostrarNaTela(c.getNome() + ", com ip:" + c.getIp() + " se conectou.");
+		mapClienteServer.put(c.getIp(), c);
+
+	}
+
+	@Override
+	public void publicarListaArquivos(Cliente c, List<Arquivo> lista) throws RemoteException {
+		for (Arquivo arquivo : lista) {
+			mostrarNaTela("Cliente:" + c.getNome() + "/ Publico arquivo: " + arquivo.getNome() + " : "
+					+ arquivo.getTamanho());
+		}
+		ListArqServer.put(c, lista);
+
+	}
+
 	@Override
 	public void desconectar(Cliente c) throws RemoteException {
 		mapClienteServer.remove(c);
 		ListArqServer.remove(c);
 		mostrarNaTela("Cliente: " + c.getNome().toUpperCase() + " desconectado!");
-
-	}
-
-	protected void DesconectarTodosClientes() {
-		mostrarNaTela("Desconectando todos os clientes do Servidor");
 
 	}
 
