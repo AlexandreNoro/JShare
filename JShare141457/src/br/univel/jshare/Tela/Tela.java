@@ -616,7 +616,7 @@ public class Tela extends JFrame implements IServer {
 
 	@Override
 	public Map<Cliente, List<Arquivo>> procurarArquivo(String nome) throws RemoteException {
-		
+
 		mostrarNaTela("Foi pesquisado o \"Arquivo\" ->" + nome);
 
 		if (nome.length() == 0) {
